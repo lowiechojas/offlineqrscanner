@@ -5,7 +5,7 @@
     margin: 0;
     padding: 0;
     height: 100vh;
-    background-image: linear-gradient(#3431dd,#0559f7);
+    background-image: linear-gradient(rgb(3,48,111),rgb(5,27,48));
  }
 
  .main-content{
@@ -19,6 +19,7 @@
  .logo{
     height: calc(100vh*.3);
     width: auto;
+    background-color: rgb(82, 104, 145);
  }
 
  .top-div{
