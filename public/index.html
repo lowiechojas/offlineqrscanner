@@ -6,11 +6,12 @@
 <title>Kiean Tutorial Center Attendance</title>
 <style>
   body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
-  video { border: 1px solid black; width: 320px; height: 240px; margin-top: 10px; }
+  video { border: 10px solid rgb(248, 248, 248); width: 320px; height: 240px; margin-top: 10px; }
   #status { margin-top: 10px; font-weight: bold; }
   #qr-content { margin-top: 10px; color: rgb(230, 17, 17); font-weight: bold; }
   #esp-ip { margin-top: 10px; padding: 5px; width: 150px; }
   label { font-weight: bold; }
+
 </style>
 <link rel="stylesheet" href="index.css">
 </head>
@@ -83,6 +84,7 @@ video.addEventListener("play", () => {
     const code = jsQR(imageData.data, canvas.width, canvas.height);
 
     if(code) {
+      video.style.borderColor = "green";
       studentname.innerText.value="Welcome, " + code.data;
       console.log("Welcome, " + code.data);
       qrContentEl.textContent = code.data;
@@ -112,6 +114,7 @@ video.addEventListener("play", () => {
         }
       }
     } else {
+      video.style.borderColor = "rgb(248, 248, 248)";
       statusEl.textContent = "Scanning...";
       qrContentEl.textContent = "";
       lastSentQR = ""; // Reset when no QR detected to allow next scan
