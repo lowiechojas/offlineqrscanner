@@ -27,6 +27,7 @@
     flex-direction: column;
     justify-content: center;
     gap: 0px;
+    color: rgb(230,97,76);
  }
 
 .qrArea{
@@ -36,4 +37,16 @@
     align-items: center;
     vertical-align: middle;
     gap:10px
+}
+
+#studentname{
+    color: rgb(247,166,61);
+    font-size: 2rem;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+#status{
+   color: rgb(214,34,90) ;
+   font-size: 2rem;
 }

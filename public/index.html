@@ -6,12 +6,11 @@
 <title>Kiean Tutorial Center Attendance</title>
 <style>
   body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
-  video { border: 10px solid rgb(248, 248, 248); width: 320px; height: 240px; margin-top: 10px; }
+  video { border: 10px solid rgb(248, 248, 248); width: 320px; height: 240px; margin-top: 10px; transition: border-color 0.3s ease; }
   #status { margin-top: 10px; font-weight: bold; }
   #qr-content { margin-top: 10px; color: rgb(230, 17, 17); font-weight: bold; }
   #esp-ip { margin-top: 10px; padding: 5px; width: 150px; }
   label { font-weight: bold; }
-
 </style>
 <link rel="stylesheet" href="index.css">
 </head>
@@ -22,23 +21,25 @@
     <h1>Attendance here!</h1>
   </div>
 
+  <div class="espip">
+    <label for="esp-ip">ESP IP:</label>
+    <input type="text" id="esp-ip" placeholder="192.168.4.1">
+  </div>
 
-<div class="espip">
-  <label for="esp-ip">ESP IP:</label>
-  <input type="text" id="esp-ip" placeholder="192.168.4.1">
+  <div class="qrArea">
+    <video id="video" autoplay></video>
+    <canvas id="canvas" hidden></canvas>
+  </div>
+
+  <div id="studentname"></div>
+  <div id="status">Initializing camera...</div>
+  <div id="qr-content"></div>
 </div>
 
-<div class="qrArea">
-  <h1 id="studentname"></h1>
-<video id="video" autoplay></video>
-<canvas id="canvas" hidden></canvas>
-</div>
-<div id="status">Initializing camera...</div>
-<div id="qr-content"></div>
-</div>
 <script src="jsQR.js"></script>
+<script type="module">
+import { processQRCodeData } from './processQR.js';
 
-<script>
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -47,10 +48,68 @@ const qrContentEl = document.getElementById("qr-content");
 const espIpEl = document.getElementById("esp-ip");
 const studentname = document.getElementById("studentname");
 
-// Track last QR sent to prevent duplicate POSTs for same QR while still in frame
 let lastSentQR = "";
+let isScanningPaused = false;
 
-// Access camera
+// Parameters you can tweak:
+const MIN_QR_TEXT_LENGTH = 4;      // discard very short decoded text
+const MIN_CSV_FIELDS = 2;         // require at least 2 CSV fields (id, name)
+const MIN_BOX_AREA = 1200;        // discard tiny detection boxes (pixels)
+const SCAN_PAUSE_MS = 1000;       // 1 second pause after a valid detection
+
+// helper: compute polygon area (shoelace)
+function polygonArea(points){
+  let area = 0;
+  for(let i=0;i<points.length;i++){
+    const j = (i+1) % points.length;
+    area += points[i].x * points[j].y - points[j].x * points[i].y;
+  }
+  return Math.abs(area) / 2;
+}
+
+// validate a jsQR result before accepting it
+function isValidDetection(code){
+  try {
+    if(!code || !code.data || typeof code.data !== "string") return false;
+    const text = code.data.trim();
+    if(text.length < MIN_QR_TEXT_LENGTH) return false;
+
+    // require comma-separated CSV format (since your data is CSV)
+    if(!text.includes(",")) return false;
+
+    const parts = processQRCodeData(text);
+    if(parts.length < MIN_CSV_FIELDS) return false;
+
+    // check bounding box area
+    if(!code.location) return false;
+    const corners = [
+      code.location.topLeftCorner,
+      code.location.topRightCorner,
+      code.location.bottomRightCorner,
+      code.location.bottomLeftCorner
+    ];
+    const area = polygonArea(corners || []);
+    if(isNaN(area) || area < MIN_BOX_AREA) return false;
+
+    // passed basic checks
+    return true;
+  } catch(err) {
+    console.warn("Error validating detection:", err);
+    return false;
+  }
+}
+
+// Draw rectangle helper kept intact
+function drawLine(begin, end, color){
+  ctx.beginPath();
+  ctx.moveTo(begin.x, begin.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+}
+
+// Access camera (same as before)
 navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
 .then(stream => {
   video.srcObject = stream;
@@ -61,20 +120,14 @@ navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
   statusEl.textContent = "Camera access denied!";
 });
 
-// Draw rectangle
-function drawLine(begin, end, color){
-  ctx.beginPath();
-  ctx.moveTo(begin.x, begin.y);
-  ctx.lineTo(end.x, end.y);
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = color;
-  ctx.stroke();
-}
-
 // Scan loop
 video.addEventListener("play", () => {
   const scanLoop = () => {
     if(video.paused || video.ended) return;
+    if(isScanningPaused) { 
+      requestAnimationFrame(scanLoop);
+      return;
+    }
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -84,40 +137,56 @@ video.addEventListener("play", () => {
     const code = jsQR(imageData.data, canvas.width, canvas.height);
 
     if(code) {
-      video.style.borderColor = "green";
-      studentname.innerText.value="Welcome, " + code.data;
-      console.log("Welcome, " + code.data);
-      qrContentEl.textContent = code.data;
-      statusEl.textContent = "QR Detected!";
+      // For debugging: uncomment to inspect all detections
+      // console.debug("Raw jsQR decode:", code);
 
-      drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
-      drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
-      drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
-      drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
+      if (isValidDetection(code)) {
+        const qrData = code.data.trim();
+        const parts = processQRCodeData(qrData);
 
-      // Only send once per QR appearance
-      if(code.data !== lastSentQR){
-        lastSentQR = code.data;
+        video.style.borderColor = "green";
+        qrContentEl.textContent = qrData;
+        // show name (safe guard if index missing)
+        studentname.textContent = (parts[1] + parts[2] || "Student");
+        statusEl.textContent = "QR Detected!";
+        statusEl.style.color = "green";
 
-        const espIp = espIpEl.value.trim();
-        if(espIp){
-          fetch(`http://${espIp}/scanned`, {
-  method: "POST",
-  headers: {"Content-Type": "application/x-www-form-urlencoded"},
-  body: `qrdata=${encodeURIComponent(code.data)}`
-})
-.then(res => res.text())
-.then(resText => console.log("ESP Response:", resText))
-.catch(err => {
-  console.error("Failed to reach ESP:", err);
-});
+        drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
+        drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
+        drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
+        drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
+
+        if(qrData !== lastSentQR){
+          lastSentQR = qrData;
+          const espIp = espIpEl.value.trim();
+          if(espIp){
+            fetch(`http://${espIp}/scanned`, {
+              method: "POST",
+              headers: {"Content-Type": "application/x-www-form-urlencoded"},
+              body: `qrdata=${encodeURIComponent(qrData)}`
+            })
+            .then(res => res.text())
+            .then(resText => console.log("ESP Response:", resText))
+            .catch(err => console.error("Failed to reach ESP:", err));
+          }
         }
+
+        // Pause further scanning for SCAN_PAUSE_MS so student name remains visible
+        isScanningPaused = true;
+        setTimeout(() => {
+          isScanningPaused = false;
+          studentname.textContent = "";
+          video.style.borderColor = "rgb(248, 248, 248)";
+           statusEl.style.color =  "rgb(214,34,90)";
+          statusEl.textContent = "Scanning...";
+          qrContentEl.textContent = "";
+          lastSentQR = "";
+        }, SCAN_PAUSE_MS);
+
+      } else {
+        // Detected by jsQR but failed our validation -> ignore silently (optionally log)
+        console.debug("Ignored spurious detection:", code.data ? code.data : "(no data)");
       }
-    } else {
-      video.style.borderColor = "rgb(248, 248, 248)";
-      statusEl.textContent = "Scanning...";
-      qrContentEl.textContent = "";
-      lastSentQR = ""; // Reset when no QR detected to allow next scan
     }
 
     requestAnimationFrame(scanLoop);
@@ -125,6 +194,5 @@ video.addEventListener("play", () => {
   scanLoop();
 });
 </script>
-
 </body>
 </html>
