@@ -42,15 +42,11 @@
 import { processQRCodeData } from './processQR.js';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// TODO: Replace these with your actual Supabase credentials
+// Supabase setup
 const SUPABASE_URL = 'https://woqvutbipzimgwicwxzx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvcXZ1dGJpcHppbWd3aWN3eHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1NjEwOTcsImV4cCI6MjA3NjEzNzA5N30.DgQyMKQ2C1e6hg9XOjrMkJJ7lqL7r1aJZV50ZoOmj7k';
-
-// Create Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// The table where you want to store attendance
-const TABLE_NAME = 'attendance'; // change this to your table name
+const TABLE_NAME = 'attendance';
 
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
@@ -60,40 +56,37 @@ const qrContentEl = document.getElementById("qr-content");
 const espIpEl = document.getElementById("esp-ip");
 const studentname = document.getElementById("studentname");
 
+// 🔊 Load the success sound
+const successSound = new Audio("./beepsound.mp3"); // change path if needed
+
 let lastSentQR = "";
 let isScanningPaused = false;
 
-// Parameters you can tweak:
-const MIN_QR_TEXT_LENGTH = 4;      // discard very short decoded text
-const MIN_CSV_FIELDS = 2;         // require at least 2 CSV fields (id, name)
-const MIN_BOX_AREA = 1200;        // discard tiny detection boxes (pixels)
-const SCAN_PAUSE_MS = 1000;       // 1 second pause after a valid detection
+const MIN_QR_TEXT_LENGTH = 4;
+const MIN_CSV_FIELDS = 2;
+const MIN_BOX_AREA = 1200;
+const SCAN_PAUSE_MS = 1000;
 
-// helper: compute polygon area (shoelace)
-function polygonArea(points){
+function polygonArea(points) {
   let area = 0;
-  for(let i=0;i<points.length;i++){
-    const j = (i+1) % points.length;
+  for (let i = 0; i < points.length; i++) {
+    const j = (i + 1) % points.length;
     area += points[i].x * points[j].y - points[j].x * points[i].y;
   }
   return Math.abs(area) / 2;
 }
 
-// validate a jsQR result before accepting it
-function isValidDetection(code){
+function isValidDetection(code) {
   try {
-    if(!code || !code.data || typeof code.data !== "string") return false;
+    if (!code || !code.data || typeof code.data !== "string") return false;
     const text = code.data.trim();
-    if(text.length < MIN_QR_TEXT_LENGTH) return false;
-
-    // require comma-separated CSV format (since your data is CSV)
-    if(!text.includes(",")) return false;
+    if (text.length < MIN_QR_TEXT_LENGTH) return false;
+    if (!text.includes(",")) return false;
 
     const parts = processQRCodeData(text);
-    if(parts.length < MIN_CSV_FIELDS) return false;
+    if (parts.length < MIN_CSV_FIELDS) return false;
 
-    // check bounding box area
-    if(!code.location) return false;
+    if (!code.location) return false;
     const corners = [
       code.location.topLeftCorner,
       code.location.topRightCorner,
@@ -101,18 +94,16 @@ function isValidDetection(code){
       code.location.bottomLeftCorner
     ];
     const area = polygonArea(corners || []);
-    if(isNaN(area) || area < MIN_BOX_AREA) return false;
+    if (isNaN(area) || area < MIN_BOX_AREA) return false;
 
-    // passed basic checks
     return true;
-  } catch(err) {
+  } catch (err) {
     console.warn("Error validating detection:", err);
     return false;
   }
 }
 
-// Draw rectangle helper kept intact
-function drawLine(begin, end, color){
+function drawLine(begin, end, color) {
   ctx.beginPath();
   ctx.moveTo(begin.x, begin.y);
   ctx.lineTo(end.x, end.y);
@@ -121,22 +112,22 @@ function drawLine(begin, end, color){
   ctx.stroke();
 }
 
-// Access camera (same as before)
+// Camera
 navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-.then(stream => {
-  video.srcObject = stream;
-  statusEl.textContent = "Camera ready. Scan a QR code.";
-})
-.catch(err => {
-  console.error(err);
-  statusEl.textContent = "Camera access denied!";
-});
+  .then(stream => {
+    video.srcObject = stream;
+    statusEl.textContent = "Camera ready. Scan a QR code.";
+  })
+  .catch(err => {
+    console.error(err);
+    statusEl.textContent = "Camera access denied!";
+  });
 
 // Scan loop
 video.addEventListener("play", () => {
   const scanLoop = () => {
-    if(video.paused || video.ended) return;
-    if(isScanningPaused) { 
+    if (video.paused || video.ended) return;
+    if (isScanningPaused) {
       requestAnimationFrame(scanLoop);
       return;
     }
@@ -148,89 +139,80 @@ video.addEventListener("play", () => {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(imageData.data, canvas.width, canvas.height);
 
-    if(code) {
-      // For debugging: uncomment to inspect all detections
-      // console.debug("Raw jsQR decode:", code);
+    if (code && isValidDetection(code)) {
+      const qrData = code.data.trim();
+      const parts = processQRCodeData(qrData);
 
-      if (isValidDetection(code)) {
-        const qrData = code.data.trim();
-        const parts = processQRCodeData(qrData);
+      video.style.borderColor = "green";
+      qrContentEl.textContent = qrData;
+      studentname.textContent = `${parts[1]} ${parts[2] || ""} ${parts[3] || ""}`;
+      statusEl.textContent = "QR Detected!";
+      statusEl.style.color = "green";
 
-        video.style.borderColor = "green";
-        qrContentEl.textContent = qrData;
-        // show name (safe guard if index missing)
-        studentname.textContent = (parts[1] + parts[2] || "Student");
-        statusEl.textContent = "QR Detected!";
-        statusEl.style.color = "green";
+      // 🔊 Play sound feedback
+      successSound.currentTime = 0; // reset if still playing
+      successSound.play().catch(err => console.warn("Sound play failed:", err));
 
-        drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
-        drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
-        drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
-        drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
+      drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
+      drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
+      drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
+      drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
 
-        if(qrData !== lastSentQR){
-          lastSentQR = qrData;
-          const espIp = espIpEl.value.trim();
-          if(espIp){
-            fetch(`http://${espIp}/scanned`, {
-              method: "POST",
-              headers: {"Content-Type": "application/x-www-form-urlencoded"},
-              body: `qrdata=${encodeURIComponent(qrData)}`
-            })
+      if (qrData !== lastSentQR) {
+        lastSentQR = qrData;
+        const espIp = espIpEl.value.trim();
+        if (espIp) {
+          fetch(`http://${espIp}/scanned`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `qrdata=${encodeURIComponent(qrData)}`
+          })
             .then(res => res.text())
             .then(resText => console.log("ESP Response:", resText))
             .catch(err => console.error("Failed to reach ESP:", err));
-          }
         }
 
-                  // Send to Supabase
-          (async () => {
-      try {
-        const parts = processQRCodeData(qrData); 
-        // Expected: [ID, First, Middle, Last, Location]
+        // Send to Supabase
+        (async () => {
+          try {
+            const studentId = parts[0] || null;
+            const firstName = parts[1] || "";
+            const middleName = parts[2] || "";
+            const lastName = parts[3] || "";
+            const location = parts[4] || "";
+            const studentName = `${firstName} ${middleName} ${lastName}`.trim();
 
-        const studentId = parts[0] || null;
-        const firstName = parts[1] || "";
-        const middleName = parts[2] || "";
-        const lastName = parts[3] || "";
-        const location = parts[4] || "";
-        const studentName = `${firstName} ${middleName} ${lastName}`.trim();
+            const { data, error } = await supabase
+              .from(TABLE_NAME)
+              .insert([
+                {
+                  student_id: studentId,
+                  student_name: studentName,
+                  location: location,
+                  status: "pending",
+                  time_in: new Date().toISOString()
+                }
+              ]);
 
-        const { data, error } = await supabase
-          .from(TABLE_NAME)
-          .insert([
-            {
-              student_id: studentId,
-              student_name: studentName,
-              location: location,
-              status: 'pending',
-              time_in: new Date().toISOString()
-            }
-          ]);
-
-        if (error) throw error;
-        console.log('✅ QR data sent to Supabase:', data);
-      } catch (err) {
-        console.error('❌ Error sending to Supabase:', err.message);
+            if (error) throw error;
+            console.log("✅ QR data sent to Supabase:", data);
+          } catch (err) {
+            console.error("❌ Error sending to Supabase:", err.message);
+          }
+        })();
       }
-    })();
 
-        // Pause further scanning for SCAN_PAUSE_MS so student name remains visible
-        isScanningPaused = true;
-        setTimeout(() => {
-          isScanningPaused = false;
-          studentname.textContent = "";
-          video.style.borderColor = "rgb(248, 248, 248)";
-           statusEl.style.color =  "rgb(214,34,90)";
-          statusEl.textContent = "Scanning...";
-          qrContentEl.textContent = "";
-          lastSentQR = "";
-        }, SCAN_PAUSE_MS);
-
-      } else {
-        // Detected by jsQR but failed our validation -> ignore silently (optionally log)
-        console.debug("Ignored spurious detection:", code.data ? code.data : "(no data)");
-      }
+      // Pause scanning for a moment
+      isScanningPaused = true;
+      setTimeout(() => {
+        isScanningPaused = false;
+        studentname.textContent = "";
+        video.style.borderColor = "rgb(248, 248, 248)";
+        statusEl.style.color = "rgb(214,34,90)";
+        statusEl.textContent = "Scanning...";
+        qrContentEl.textContent = "";
+        lastSentQR = "";
+      }, SCAN_PAUSE_MS);
     }
 
     requestAnimationFrame(scanLoop);
