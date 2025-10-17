@@ -5,7 +5,13 @@
     margin: 0;
     padding: 0;
     height: 100vh;
-    background-image: linear-gradient(rgb(3,48,111),rgb(5,27,48));
+    /*background-image: linear-gradient(rgb(3,48,111),rgb(5,27,48));*/
+    background-color: rgb(3,48,111);
+    background-image: url("./KIEAN_LOGO.png");
+    background-repeat: repeat;
+    background-position: top left;
+    background-attachment: fixed;
+    background-size: 300px 200px;
  }
 
  .main-content{
@@ -13,7 +19,8 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 20px;
+    height: 100vh;
+    width: 100vw;
  }
 
  .logo{
@@ -28,6 +35,9 @@
     justify-content: center;
     gap: 0px;
     color: rgb(230,97,76);
+    background-color: rgb(82, 104, 145);
+    padding: 5px;
+    border-radius: 20px;
  }
 
 .qrArea{
@@ -36,7 +46,7 @@
     justify-content: center;
     align-items: center;
     vertical-align: middle;
-    gap:10px
+    box-shadow: wheat 0px 0px 10px 2px;
 }
 
 #studentname{
@@ -47,6 +57,10 @@
 }
 
 #status{
-   color: rgb(214,34,90) ;
-   font-size: 2rem;
+   width: 320px;
+   background-color: #173272;
+   color: rgb(246, 241, 242) ;
+   font-size: 1.5rem;
+   opacity: 0.9;
+   box-shadow: wheat 0px 0px 10px 2px;
 }

@@ -7,7 +7,7 @@
 <title>Kiean Tutorial Center Attendance</title>
 <style>
   body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
-  video { border: 10px solid rgb(248, 248, 248); width: 320px; height: 240px; margin-top: 10px; transition: border-color 0.3s ease; }
+  video { border: 10px solid rgb(248, 248, 248); width: 320px; height: 240px; margin-top: 0px; transition: border-color 0.3s ease; }
   #status { margin-top: 10px; font-weight: bold; }
   #qr-content { margin-top: 10px; color: rgb(230, 17, 17); font-weight: bold; }
   #esp-ip { margin-top: 10px; padding: 5px; width: 150px; }
@@ -18,23 +18,23 @@
 <body>
 <div class="main-content">
   <div class="top-div">
-    <img class="logo" src="KIEAN_LOGO.png" alt="ktc">
-    <h1>Attendance here!</h1>
+    
+    <!--<img class="logo" src="KIEAN_LOGO.png" alt="ktc">-->
   </div>
-
+<!--
   <div class="espip">
     <label for="esp-ip">ESP IP:</label>
     <input type="text" id="esp-ip" placeholder="192.168.4.1">
   </div>
-
+-->
   <div class="qrArea">
     <video id="video" autoplay></video>
     <canvas id="canvas" hidden></canvas>
   </div>
 
-  <div id="studentname"></div>
+   <div id="studentname"></div>
   <div id="status">Initializing camera...</div>
-  <div id="qr-content"></div>
+  <!-- <div id="qr-content"></div>-->
 </div>
 
 <script src="jsQR.js"></script>
@@ -116,7 +116,7 @@ function drawLine(begin, end, color) {
 navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
   .then(stream => {
     video.srcObject = stream;
-    statusEl.textContent = "Camera ready. Scan a QR code.";
+    statusEl.textContent = "Scan a QR code.";
   })
   .catch(err => {
     console.error(err);
@@ -144,10 +144,11 @@ video.addEventListener("play", () => {
       const parts = processQRCodeData(qrData);
 
       video.style.borderColor = "green";
-      qrContentEl.textContent = qrData;
-      studentname.textContent = `${parts[1]} ${parts[2] || ""} ${parts[3] || ""}`;
-      statusEl.textContent = "QR Detected!";
-      statusEl.style.color = "green";
+      statusEl.style.color = "rgb(246, 241, 242)";
+      //qrContentEl.textContent = qrData;
+      //studentname.textContent = `${parts[1]} ${parts[2] || ""} ${parts[3] || ""}`;
+      statusEl.textContent = `${parts[1]} ${parts[2] || ""} ${parts[3] || ""}`;
+  
 
       // 🔊 Play sound feedback
       successSound.currentTime = 0; // reset if still playing
@@ -160,6 +161,7 @@ video.addEventListener("play", () => {
 
       if (qrData !== lastSentQR) {
         lastSentQR = qrData;
+        /* This section is needed if local scanning only
         const espIp = espIpEl.value.trim();
         if (espIp) {
           fetch(`http://${espIp}/scanned`, {
@@ -171,7 +173,7 @@ video.addEventListener("play", () => {
             .then(resText => console.log("ESP Response:", resText))
             .catch(err => console.error("Failed to reach ESP:", err));
         }
-
+       */
         // Send to Supabase
         (async () => {
           try {
@@ -208,7 +210,7 @@ video.addEventListener("play", () => {
         isScanningPaused = false;
         studentname.textContent = "";
         video.style.borderColor = "rgb(248, 248, 248)";
-        statusEl.style.color = "rgb(214,34,90)";
+        statusEl.style.color = "red";
         statusEl.textContent = "Scanning...";
         qrContentEl.textContent = "";
         lastSentQR = "";
