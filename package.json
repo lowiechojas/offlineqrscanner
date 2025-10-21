@@ -14,8 +14,6 @@
       "name": "Jefff Nelson",
       "email": "gmjefff@gmail.com"
     }
-
-    
   ],
   "license": "Apache-2.0",
   "devDependencies": {
@@ -36,6 +34,7 @@
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "webpack",
+    "dev": "webpack --watch",
     "watch": "webpack --watch",
     "test": "jest",
     "lint": "tslint --project .",

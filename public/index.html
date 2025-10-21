@@ -181,17 +181,23 @@ video.addEventListener("play", () => {
             const firstName = parts[1] || "";
             const middleName = parts[2] || "";
             const lastName = parts[3] || "";
-            const location = parts[4] || "";
+            const studentlevel = parts[4] || "";
+            const branchlocation = parts[5] || "";
+            const mobilenum = parts[6] || "";
             const studentName = `${firstName} ${middleName} ${lastName}`.trim();
 
             const { data, error } = await supabase
               .from(TABLE_NAME)
               .insert([
                 {
-                  student_id: studentId,
-                  student_name: studentName,
-                  location: location,
-                  status: "pending",
+                  StudentID: studentId,
+                  FirstName: firstName,
+                  MiddleName: middleName,
+                  LastName: lastName,
+                  StudentLevel: studentlevel,
+                  BranchLocation: branchlocation,
+                  MobileNumber: mobilenum,
+                  SMSstatus: "pending",
                   time_in: new Date().toISOString()
                 }
               ]);
