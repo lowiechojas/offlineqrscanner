@@ -198,7 +198,7 @@ video.addEventListener("play", () => {
                   BranchLocation: branchlocation,
                   MobileNumber: mobilenum,
                   SMSstatus: "pending",
-                  time_in: new Date().toISOString()
+                  time_in: new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" })
                 }
               ]);
 
