@@ -1,192 +1,187 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="icon" href="KIEAN_LOGO_Icon.png" type="image/png">
-<title>Kiean Tutorial Center Attendance</title>
-<style>
-  body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
-  video { border: 10px solid rgb(248, 248, 248); width: 320px; height: 240px; margin-top: 0px; transition: border-color 0.3s ease; }
-  #status { margin-top: 10px; font-weight: bold; }
-  #qr-content { margin-top: 10px; color: rgb(230, 17, 17); font-weight: bold; }
-  #esp-ip { margin-top: 10px; padding: 5px; width: 150px; }
-  label { font-weight: bold; }
-</style>
-<link rel="stylesheet" href="index.css">
-</head>
-<body>
-<div class="main-content">
-  <div class="top-div">
-    
-    <!--<img class="logo" src="KIEAN_LOGO.png" alt="ktc">-->
-  </div>
-<!--
-  <div class="espip">
-    <label for="esp-ip">ESP IP:</label>
-    <input type="text" id="esp-ip" placeholder="192.168.4.1">
-  </div>
--->
-  <div class="qrArea">
-    <video id="video" autoplay></video>
-    <canvas id="canvas" hidden></canvas>
-  </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="KIEAN_LOGO_Icon.png" type="image/png" />
+    <title>Kiean Tutorial Center Attendance</title>
 
-   <div id="studentname"></div>
-  <div id="status">Initializing camera...</div>
-  <!-- <div id="qr-content"></div>-->
-</div>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin: 20px;
+      }
 
-<script src="jsQR.js"></script>
-<script type="module">
-import { processQRCodeData } from './processQR.js';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+      video {
+        border: 10px solid rgb(248, 248, 248);
+        width: 320px;
+        height: 240px;
+        margin-top: 0px;
+        transition: border-color 0.3s ease;
+      }
 
-// Supabase setup
-const SUPABASE_URL = 'https://woqvutbipzimgwicwxzx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvcXZ1dGJpcHppbWd3aWN3eHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1NjEwOTcsImV4cCI6MjA3NjEzNzA5N30.DgQyMKQ2C1e6hg9XOjrMkJJ7lqL7r1aJZV50ZoOmj7k';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const TABLE_NAME = 'attendance';
+      #status {
+        margin-top: 10px;
+        font-weight: bold;
+      }
 
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-const statusEl = document.getElementById("status");
-const qrContentEl = document.getElementById("qr-content");
-const espIpEl = document.getElementById("esp-ip");
-const studentname = document.getElementById("studentname");
+      #qr-content {
+        margin-top: 10px;
+        color: rgb(230, 17, 17);
+        font-weight: bold;
+      }
 
-// 🔊 Load the success sound
-const successSound = new Audio("./beepsound.mp3"); // change path if needed
+      #esp-ip {
+        margin-top: 10px;
+        padding: 5px;
+        width: 150px;
+      }
 
-let lastSentQR = "";
-let isScanningPaused = false;
+      label {
+        font-weight: bold;
+      }
+    </style>
 
-const MIN_QR_TEXT_LENGTH = 4;
-const MIN_CSV_FIELDS = 2;
-const MIN_BOX_AREA = 1200;
-const SCAN_PAUSE_MS = 1000;
+    <link rel="stylesheet" href="index.css" />
+  </head>
 
-function polygonArea(points) {
-  let area = 0;
-  for (let i = 0; i < points.length; i++) {
-    const j = (i + 1) % points.length;
-    area += points[i].x * points[j].y - points[j].x * points[i].y;
-  }
-  return Math.abs(area) / 2;
-}
+  <body>
+    <div class="main-content">
+      <div class="top-div">
+        <!-- <img class="logo" src="KIEAN_LOGO.png" alt="ktc"> -->
+      </div>
 
-function isValidDetection(code) {
-  try {
-    if (!code || !code.data || typeof code.data !== "string") return false;
-    const text = code.data.trim();
-    if (text.length < MIN_QR_TEXT_LENGTH) return false;
-    if (!text.includes(",")) return false;
+      <div class="qrArea">
+        <video id="video" autoplay></video>
+        <canvas id="canvas" hidden></canvas>
+      </div>
 
-    const parts = processQRCodeData(text);
-    if (parts.length < MIN_CSV_FIELDS) return false;
+      <div id="studentname"></div>
+      <div id="status">Initializing camera...</div>
+    </div>
 
-    if (!code.location) return false;
-    const corners = [
-      code.location.topLeftCorner,
-      code.location.topRightCorner,
-      code.location.bottomRightCorner,
-      code.location.bottomLeftCorner
-    ];
-    const area = polygonArea(corners || []);
-    if (isNaN(area) || area < MIN_BOX_AREA) return false;
+    <script src="jsQR.js"></script>
+    <script type="module">
+      /* ✅ FIX 1: move imports to top-level */
+      import { processQRCodeData } from "./processQR.js";
+      import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    return true;
-  } catch (err) {
-    console.warn("Error validating detection:", err);
-    return false;
-  }
-}
+      window.onload = async () => {
+        // ---- SUPABASE SETUP ----
+        const SUPABASE_URL = "https://woqvutbipzimgwicwxzx.supabase.co";
+        const SUPABASE_ANON_KEY =
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvcXZ1dGJpcHppbWd3aWN3eHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1NjEwOTcsImV4cCI6MjA3NjEzNzA5N30.DgQyMKQ2C1e6hg9XOjrMkJJ7lqL7r1aJZV50ZoOmj7k";
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const TABLE_NAME = "attendance";
 
-function drawLine(begin, end, color) {
-  ctx.beginPath();
-  ctx.moveTo(begin.x, begin.y);
-  ctx.lineTo(end.x, end.y);
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = color;
-  ctx.stroke();
-}
+        // ---- ELEMENTS ----
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        const statusEl = document.getElementById("status");
+        const studentname = document.getElementById("studentname");
 
-// Camera
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-  .then(stream => {
-    video.srcObject = stream;
-    statusEl.textContent = "Scan a QR code.";
-  })
-  .catch(err => {
-    console.error(err);
-    statusEl.textContent = "Camera access denied!";
-  });
+        // ---- SOUNDS ----
+        const successSound = new Audio("./beepsound.mp3");
+        const warnBeep = new Audio("./warnbeep.mp3");
 
-// Scan loop
-video.addEventListener("play", () => {
-  const scanLoop = () => {
-    if (video.paused || video.ended) return;
-    if (isScanningPaused) {
-      requestAnimationFrame(scanLoop);
-      return;
-    }
+        // ---- SETTINGS ----
+        let lastSentQR = "";
+        let isScanningPaused = false;
+        const SCAN_PAUSE_MS = 1000;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, canvas.width, canvas.height);
-
-    if (code && isValidDetection(code)) {
-      const qrData = code.data.trim();
-      const parts = processQRCodeData(qrData);
-
-      video.style.borderColor = "green";
-      statusEl.style.color = "rgb(246, 241, 242)";
-      //qrContentEl.textContent = qrData;
-      //studentname.textContent = `${parts[1]} ${parts[2] || ""} ${parts[3] || ""}`;
-      statusEl.textContent = `${parts[1]} ${parts[2] || ""} ${parts[3] || ""}`;
-  
-
-      // 🔊 Play sound feedback
-      successSound.currentTime = 0; // reset if still playing
-      successSound.play().catch(err => console.warn("Sound play failed:", err));
-
-      drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
-      drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
-      drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
-      drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
-
-      if (qrData !== lastSentQR) {
-        lastSentQR = qrData;
-        /* This section is needed if local scanning only
-        const espIp = espIpEl.value.trim();
-        if (espIp) {
-          fetch(`http://${espIp}/scanned`, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: `qrdata=${encodeURIComponent(qrData)}`
+        // ---- CAMERA ----
+        navigator.mediaDevices
+          .getUserMedia({ video: { facingMode: "environment" } })
+          .then((stream) => {
+            video.srcObject = stream;
+            statusEl.textContent = "Scan a QR code.";
           })
-            .then(res => res.text())
-            .then(resText => console.log("ESP Response:", resText))
-            .catch(err => console.error("Failed to reach ESP:", err));
-        }
-       */
-        // Send to Supabase
-        (async () => {
-          try {
-            const studentId = parts[0] || null;
-            const firstName = parts[1] || "";
-            const middleName = parts[2] || "";
-            const lastName = parts[3] || "";
-            const studentlevel = parts[4] || "";
-            const branchlocation = parts[5] || "";
-            const mobilenum = parts[6] || "";
-            const studentName = `${firstName} ${middleName} ${lastName}`.trim();
+          .catch((err) => {
+            console.error(err);
+            statusEl.textContent = "Camera access denied!";
+          });
 
-            const { data, error } = await supabase
+        // ---- MAIN LOOP ----
+        video.addEventListener("play", () => {
+          const scanLoop = () => {
+            if (video.paused || video.ended) return;
+            if (!isScanningPaused) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+              const imageData = ctx.getImageData(
+                0,
+                0,
+                canvas.width,
+                canvas.height
+              );
+              const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+              if (code && code.data) {
+                const qrData = code.data.trim();
+                if (qrData !== lastSentQR) {
+                  lastSentQR = qrData;
+                  handleScan(qrData);
+                }
+              }
+            }
+            requestAnimationFrame(scanLoop);
+          };
+          scanLoop();
+        });
+
+        // ---- HANDLE QR SCAN ----
+        async function handleScan(qrData) {
+          try {
+            const parts = processQRCodeData(qrData);
+            const [
+              studentId,
+              firstName,
+              middleName,
+              lastName,
+              studentlevel,
+              branchlocation,
+              mobilenum,
+            ] = parts;
+
+            const fullName = `${firstName} ${middleName} ${lastName}`.trim();
+
+            const { data: existing, error: fetchError } = await supabase
+              .from(TABLE_NAME)
+              .select("*")
+              .eq("StudentID", studentId)
+              .order("time_in", { ascending: false })
+              .limit(1);
+
+            if (fetchError) throw fetchError;
+
+            let action = "time-in";
+            let message = "TIME IN recorded";
+            let statusColor = "green";
+
+            if (!existing || existing.length === 0) {
+              action = "time-in";
+            } else {
+              const lastRecord = existing[0];
+              if (lastRecord.in_out === "time-in") {
+                action = "time-out";
+                message = "TIME OUT recorded";
+                statusColor = "blue";
+              } else if (lastRecord.in_out === "time-out") {
+                message = "Already TIMED OUT today";
+                statusColor = "red";
+                warnBeep.play();
+                showMessage(fullName, message, statusColor);
+                return;
+              }
+            }
+
+            console.log("📤 Sending:", action); // ✅ FIX 2: confirm action being sent
+
+            const { data: inserted, error: insertError } = await supabase
               .from(TABLE_NAME)
               .insert([
                 {
@@ -198,35 +193,47 @@ video.addEventListener("play", () => {
                   BranchLocation: branchlocation,
                   MobileNumber: mobilenum,
                   SMSstatus: "pending",
-                  time_in: new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" })
-                }
-              ]);
+                  time_in: new Date().toLocaleString("en-PH", {
+                    timeZone: "Asia/Manila",
+                  }),
+                  in_out: action, // ✅ FIX 3: ensure this is sent correctly
+                },
+              ])
+              .select();
 
-            if (error) throw error;
-            console.log("✅ QR data sent to Supabase:", data);
+            if (insertError) throw insertError;
+
+            console.log("✅ Logged:", inserted);
+            successSound.play().catch(() => {});
+            showMessage(fullName, message, statusColor);
           } catch (err) {
-            console.error("❌ Error sending to Supabase:", err.message);
+            console.error("❌ Error:", err);
+            warnBeep.play();
+            statusEl.style.color = "red";
+            statusEl.textContent = "Error logging attendance";
           }
-        })();
-      }
 
-      // Pause scanning for a moment
-      isScanningPaused = true;
-      setTimeout(() => {
-        isScanningPaused = false;
-        studentname.textContent = "";
-        video.style.borderColor = "rgb(248, 248, 248)";
-        statusEl.style.color = "red";
-        statusEl.textContent = "Scanning...";
-        qrContentEl.textContent = "";
-        lastSentQR = "";
-      }, SCAN_PAUSE_MS);
-    }
+          isScanningPaused = true;
+          setTimeout(() => {
+            isScanningPaused = false;
+            lastSentQR = "";
+            video.style.borderColor = "rgb(248, 248, 248)";
+            statusEl.textContent = "Scanning...";
+          }, SCAN_PAUSE_MS);
+        }
 
-    requestAnimationFrame(scanLoop);
-  };
-  scanLoop();
-});
-</script>
-</body>
+        function showMessage(name, msg, color) {
+          video.style.borderColor = color;
+          statusEl.style.color = color;
+          statusEl.textContent = msg;
+          if (studentname) {
+            studentname.textContent = name;
+            setTimeout(() => {
+              if (studentname) studentname.textContent = "";
+            }, 4000);
+          }
+        }
+      };
+    </script>
+  </body>
 </html>
