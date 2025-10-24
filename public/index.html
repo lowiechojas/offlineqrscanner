@@ -48,9 +48,7 @@
 
   <body>
     <div class="main-content">
-      <div class="top-div">
-        <!-- <img class="logo" src="KIEAN_LOGO.png" alt="ktc"> -->
-      </div>
+      <div class="top-div"></div>
 
       <div class="qrArea">
         <video id="video" autoplay></video>
@@ -63,7 +61,6 @@
 
     <script src="jsQR.js"></script>
     <script type="module">
-      /* ✅ FIX 1: move imports to top-level */
       import { processQRCodeData } from "./processQR.js";
       import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -116,7 +113,8 @@
                 0,
                 0,
                 canvas.width,
-                canvas.height
+                canvas.height,
+                { willReadFrequently: true } // optional perf boost
               );
               const code = jsQR(imageData.data, canvas.width, canvas.height);
 
@@ -149,9 +147,10 @@
 
             const fullName = `${firstName} ${middleName} ${lastName}`.trim();
 
+            // 🟢 Fetch last attendance record
             const { data: existing, error: fetchError } = await supabase
               .from(TABLE_NAME)
-              .select("*")
+              .select("time_in, in_out")
               .eq("StudentID", studentId)
               .order("time_in", { ascending: false })
               .limit(1);
@@ -162,48 +161,78 @@
             let message = "TIME IN recorded";
             let statusColor = "green";
 
-            if (!existing || existing.length === 0) {
-              action = "time-in";
-            } else {
+            if (existing && existing.length > 0) {
               const lastRecord = existing[0];
+
+              const timestamp =lastRecord.time_in; // e.g., "2025-10-24T13:22:50+08:00"
+
+              // Step 1: Remove the timezone part by splitting at '+'
+              const mainPart = timestamp.split("+")[0]; // "2025-10-24T13:22:50"
+
+              // Step 2: Split date and time
+              const dateTimeParts = mainPart.split("T"); // ["2025-10-24", "13:22:50"]
+
+              // Step 3: Extract the time portion
+              const timePart = dateTimeParts[1]; // "13:22:50"
+
+              // Step 4: Split into hours, minutes, seconds
+              const [hours, minutes, seconds] = timePart.split(":").map(Number);
+
+              // Step 5: Convert total time to seconds since midnight (optional)
+              const Lasttime_totalSeconds = hours * 3600 + minutes * 60 + seconds;
+            
+             // Current UTC time
+              const nowUTC = new Date();
+
+              // Convert to PH timezone (UTC+8)
+              const nowPH = new Date(nowUTC.getTime()+0 * 60 * 60 * 1000);
+
+              // If you want total seconds since midnight for interval calculation
+              const totalSeconds = nowPH.getHours() * 3600 + nowPH.getMinutes() * 60 + nowPH.getSeconds();
+              
+              const diffMins = Math.floor((totalSeconds - Lasttime_totalSeconds) / 60);
+
+
+              if (diffMins < 5) {
+                console.log("Please wait before scanning again.");
+                message = `Please wait ${Math.ceil(5 - diffMins)} minute(s) before scanning again.`;
+                statusColor = "orange";
+                warnBeep.play();
+                showMessage(fullName, message, statusColor);
+                resumeScanning();
+                return;
+              }
+
+              // Determine action type
               if (lastRecord.in_out === "time-in") {
                 action = "time-out";
                 message = "TIME OUT recorded";
                 statusColor = "blue";
-              } else if (lastRecord.in_out === "time-out") {
-                message = "Already TIMED OUT today";
-                statusColor = "red";
-                warnBeep.play();
-                showMessage(fullName, message, statusColor);
-                return;
+              } else {
+                action = "time-in";
+                message = "TIME IN recorded";
+                statusColor = "green";
               }
             }
 
-            console.log("📤 Sending:", action); // ✅ FIX 2: confirm action being sent
-
-            const { data: inserted, error: insertError } = await supabase
-              .from(TABLE_NAME)
-              .insert([
-                {
-                  StudentID: studentId,
-                  FirstName: firstName,
-                  MiddleName: middleName,
-                  LastName: lastName,
-                  StudentLevel: studentlevel,
-                  BranchLocation: branchlocation,
-                  MobileNumber: mobilenum,
-                  SMSstatus: "pending",
-                  time_in: new Date().toLocaleString("en-PH", {
-                    timeZone: "Asia/Manila",
-                  }),
-                  in_out: action, // ✅ FIX 3: ensure this is sent correctly
-                },
-              ])
-              .select();
+            // ✅ Insert new record
+            const { error: insertError } = await supabase.from(TABLE_NAME).insert([
+              {
+                StudentID: studentId,
+                FirstName: firstName,
+                MiddleName: middleName,
+                LastName: lastName,
+                StudentLevel: studentlevel,
+                BranchLocation: branchlocation,
+                MobileNumber: mobilenum,
+                SMSstatus: "pending",
+                time_in: new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }),
+                in_out: action,
+              },
+            ]);
 
             if (insertError) throw insertError;
 
-            console.log("✅ Logged:", inserted);
             successSound.play().catch(() => {});
             showMessage(fullName, message, statusColor);
           } catch (err) {
@@ -213,11 +242,16 @@
             statusEl.textContent = "Error logging attendance";
           }
 
+          resumeScanning();
+        }
+
+        function resumeScanning() {
           isScanningPaused = true;
           setTimeout(() => {
             isScanningPaused = false;
             lastSentQR = "";
             video.style.borderColor = "rgb(248, 248, 248)";
+            studentname.textContent = "";
             statusEl.textContent = "Scanning...";
           }, SCAN_PAUSE_MS);
         }
@@ -230,7 +264,7 @@
             studentname.textContent = name;
             setTimeout(() => {
               if (studentname) studentname.textContent = "";
-            }, 4000);
+            }, 2000);
           }
         }
       };
